@@ -19,13 +19,13 @@ MODEL_PATH = (
     PROJECT_DIR
     / "results"
     / "models"
-    / "longer_training_model.pth"
+    / "longer_context_model.pth"
 )
 
 OUTPUT_DIR = PROJECT_DIR / "generated_output"
-OUTPUT_PATH = OUTPUT_DIR / "generated_longer_training.txt"
+OUTPUT_PATH = OUTPUT_DIR / "generated_longer_context.txt"
 
-BLOCK_SIZE = 64
+BLOCK_SIZE = 96
 MAX_NEW_TOKENS = 500
 TEMPERATURE = 0.7
 PROMPT = "ROMEO:"
