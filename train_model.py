@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import json
+import math
+from pathlib import Path
+import matplotlib.pyplot as plt
+
 
 # -------------------------
 # 1. Configuration
@@ -250,8 +255,12 @@ class TinyGPT(nn.Module):
 
 
 # -------------------------
-# 10. Train the model
+# 10. Train and evaluate the model
 # -------------------------
+
+results_dir = Path("results")
+results_dir.mkdir(exist_ok=True)
+
 model = TinyGPT().to(device)
 
 optimizer = torch.optim.AdamW(
@@ -265,16 +274,27 @@ print(
     sum(p.numel() for p in model.parameters())
 )
 
-# Evaluate initial loss
-initial_losses = estimate_loss(model)
-print("Initial losses:", initial_losses)
+# Store actual evaluation measurements
+history = {
+    "experiment": "baseline",
+    "model_parameters": sum(p.numel() for p in model.parameters()),
+    "max_iters": max_iters,
+    "eval_interval": eval_interval,
+    "steps": [],
+    "train_losses": [],
+    "val_losses": [],
+}
 
 # Training loop
-for step in range(max_iters):
+for step in range(max_iters + 1):
 
-    # Evaluate periodically
+    # Evaluate before training at step 0, then at each interval
     if step % eval_interval == 0:
         losses = estimate_loss(model)
+
+        history["steps"].append(step)
+        history["train_losses"].append(losses["train"])
+        history["val_losses"].append(losses["val"])
 
         print(
             f"Step {step:4d}: "
@@ -282,26 +302,92 @@ for step in range(max_iters):
             f"val loss {losses['val']:.4f}"
         )
 
-    # Sample a training batch
+    # Stop after the final evaluation at max_iters
+    if step == max_iters:
+        break
+
     xb, yb = get_batch("train")
 
-    # Forward pass
     logits, loss = model(xb, yb)
 
-    # Reset old gradients
     optimizer.zero_grad(set_to_none=True)
-
-    # Backpropagation
     loss.backward()
-
-    # Update parameters
     optimizer.step()
 
-# Final evaluation
-final_losses = estimate_loss(model)
-print("\nFinal losses:", final_losses)
+# Save evaluation history
+history["initial_train_loss"] = history["train_losses"][0]
+history["initial_val_loss"] = history["val_losses"][0]
+history["final_train_loss"] = history["train_losses"][-1]
+history["final_val_loss"] = history["val_losses"][-1]
 
-# Save the trained model
-torch.save(model.state_dict(), "tiny_gpt.pth")
-print("Model saved to tiny_gpt.pth")
+history_path = results_dir / "baseline_history.json"
 
+with history_path.open("w", encoding="utf-8") as f:
+    json.dump(history, f, indent=2)
+
+# Save baseline model without overwriting other experiments
+model_path = results_dir / "baseline_model.pth"
+torch.save(model.state_dict(), model_path)
+
+# -------------------------
+# 11. Plot actual loss history
+# -------------------------
+plt.figure(figsize=(9, 5))
+plt.plot(
+    history["steps"],
+    history["train_losses"],
+    marker="o",
+    label="Training loss"
+)
+plt.plot(
+    history["steps"],
+    history["val_losses"],
+    marker="o",
+    label="Validation loss"
+)
+plt.xlabel("Training step")
+plt.ylabel("Cross-entropy loss")
+plt.title("Baseline GPT: Training vs Validation Loss")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(
+    results_dir / "baseline_loss.png",
+    dpi=150
+)
+plt.close()
+
+# -------------------------
+# 12. Plot validation perplexity
+# -------------------------
+val_perplexities = [
+    math.exp(loss) for loss in history["val_losses"]
+]
+
+plt.figure(figsize=(9, 5))
+plt.plot(
+    history["steps"],
+    val_perplexities,
+    marker="o"
+)
+plt.xlabel("Training step")
+plt.ylabel("Validation perplexity")
+plt.title("Baseline GPT: Validation Perplexity")
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(
+    results_dir / "baseline_perplexity.png",
+    dpi=150
+)
+plt.close()
+
+print("\nBaseline training complete!")
+print("Final training loss:", history["final_train_loss"])
+print("Final validation loss:", history["final_val_loss"])
+print(
+    "Final validation perplexity:",
+    math.exp(history["final_val_loss"])
+)
+print("Saved history:", history_path)
+print("Saved model:", model_path)
+print("Saved graphs in:", results_dir.resolve())
