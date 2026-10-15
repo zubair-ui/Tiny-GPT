@@ -15,8 +15,8 @@ torch.manual_seed(1337)
 device = "cpu"
 
 batch_size = 16
-block_size = 96
-max_iters = 4000
+block_size = 64
+max_iters = 6000
 eval_interval = 200
 learning_rate = 3e-4
 eval_iters = 20
@@ -275,7 +275,7 @@ print(
 )
 
 history = {
-    "experiment": "longer_context",
+    "experiment": "learning_rate_decay_6000",
     "model_parameters": sum(p.numel() for p in model.parameters()),
     "max_iters": max_iters,
     "eval_interval": eval_interval,
@@ -305,10 +305,22 @@ for step in range(max_iters + 1):
     if step == max_iters:
         break
 
+    # Calculate the learning rate for this step
+    progress = step / max_iters
+
+    learning_rate = 3e-4 * (1 - progress) + 3e-5 * progress
+
+    # Update the optimizer's learning rate
+    for param_group in optimizer.param_groups:
+        param_group["lr"] = learning_rate
+
+    # Sample a training batch
     xb, yb = get_batch("train")
 
+    # Forward pass
     logits, loss = model(xb, yb)
 
+    # Backpropagation
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
@@ -319,13 +331,13 @@ history["initial_val_loss"] = history["val_losses"][0]
 history["final_train_loss"] = history["train_losses"][-1]
 history["final_val_loss"] = history["val_losses"][-1]
 
-history_path = results_dir / "longer_context_history.json"
+history_path = results_dir / "learning_rate_decay_6000_history.json"
 
 with history_path.open("w", encoding="utf-8") as f:
     json.dump(history, f, indent=2)
 
 # Save baseline model without overwriting other experiments
-model_path = results_dir / "longer_context_model.pth"
+model_path = results_dir / "learning_rate_decay_6000_model.pth"
 torch.save(model.state_dict(), model_path)
 
 # -------------------------
@@ -346,12 +358,12 @@ plt.plot(
 )
 plt.xlabel("Training step")
 plt.ylabel("Cross-entropy loss")
-plt.title("Longer Training GPT: Training vs Validation Loss")
+plt.title("Learning Rate Decay and 6000 Steps Training GPT: Training vs Validation Loss")
 plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(
-    results_dir / "longer_context_loss.png",
+    results_dir / "learning_rate_decay_6000_loss.png",
     dpi=150
 )
 plt.close()
@@ -371,16 +383,16 @@ plt.plot(
 )
 plt.xlabel("Training step")
 plt.ylabel("Validation perplexity")
-plt.title("Longer Training GPT: Validation Perplexity")
+plt.title("Learning Rate Decay and 6000 Steps Training GPT: Validation Perplexity")
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(
-    results_dir / "longer_context_perplexity.png",
+    results_dir / "learning_rate_decay_6000_perplexity.png",
     dpi=150
 )
 plt.close()
 
-print("\nLonger Context Training complete!")
+print("\nLearning Rate Decay and 6000 Steps Training complete!")
 print("Final training loss:", history["final_train_loss"])
 print("Final validation loss:", history["final_val_loss"])
 print(
