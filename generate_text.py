@@ -125,14 +125,19 @@ class TinyGPT(nn.Module):
         return self.lm_head(x)
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens=500):
+    def generate(self, idx, max_new_tokens=500, temperature=1.0):
         for _ in range(max_new_tokens):
             idx_cond = idx[:, -block_size:]
             logits = self(idx_cond)
             logits = logits[:, -1, :]
+
+            # Temperature controls sampling randomness
+            logits = logits / temperature
+
             probs = F.softmax(logits, dim=-1)
             next_token = torch.multinomial(probs, num_samples=1)
             idx = torch.cat((idx, next_token), dim=1)
+
         return idx
 
 
@@ -155,7 +160,11 @@ context = torch.tensor(
     [encode(prompt)], dtype=torch.long, device=device
 )
 
-generated = model.generate(context, max_new_tokens=500)
+generated = model.generate(
+    context,
+    max_new_tokens=500,
+    temperature=0.7
+)
 output = decode(generated[0].tolist())
 
 print("\n--- Generated Text ---\n")
