@@ -15,8 +15,7 @@ torch.manual_seed(1337)
 device = "cpu"
 
 batch_size = 16
-block_size = 64
-#max_iters = 2000       BASELINE MODEL
+block_size = 96
 max_iters = 4000
 eval_interval = 200
 learning_rate = 3e-4
@@ -275,19 +274,8 @@ print(
     sum(p.numel() for p in model.parameters())
 )
 
-# Store actual evaluation measurements
-# history = {       # BASELINE MODEL
-#     "experiment": "baseline",
-#     "model_parameters": sum(p.numel() for p in model.parameters()),
-#     "max_iters": max_iters,
-#     "eval_interval": eval_interval,
-#     "steps": [],
-#     "train_losses": [],
-#     "val_losses": [],
-# }
-
 history = {
-    "experiment": "longer_training",
+    "experiment": "longer_context",
     "model_parameters": sum(p.numel() for p in model.parameters()),
     "max_iters": max_iters,
     "eval_interval": eval_interval,
@@ -331,17 +319,13 @@ history["initial_val_loss"] = history["val_losses"][0]
 history["final_train_loss"] = history["train_losses"][-1]
 history["final_val_loss"] = history["val_losses"][-1]
 
-#history_path = results_dir / "baseline_history.json"   # BASELINE MODEL
-
-history_path = results_dir / "longer_training_history.json"
+history_path = results_dir / "longer_context_history.json"
 
 with history_path.open("w", encoding="utf-8") as f:
     json.dump(history, f, indent=2)
 
 # Save baseline model without overwriting other experiments
-#model_path = results_dir / "baseline_model.pth"    # BASELINE MODEL
-
-model_path = results_dir / "longer_training_model.pth"
+model_path = results_dir / "longer_context_model.pth"
 torch.save(model.state_dict(), model_path)
 
 # -------------------------
@@ -367,8 +351,7 @@ plt.legend()
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(
-    #results_dir / "baseline_loss.png",     # BASELINE MODEL
-    results_dir / "longer_training_loss.png",
+    results_dir / "longer_context_loss.png",
     dpi=150
 )
 plt.close()
@@ -392,13 +375,12 @@ plt.title("Longer Training GPT: Validation Perplexity")
 plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(
-    #results_dir / "baseline_perplexity.png",
-    results_dir / "longer_training_perplexity.png",
+    results_dir / "longer_context_perplexity.png",
     dpi=150
 )
 plt.close()
 
-print("\nlonger Training complete!")
+print("\nLonger Context Training complete!")
 print("Final training loss:", history["final_train_loss"])
 print("Final validation loss:", history["final_val_loss"])
 print(
