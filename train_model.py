@@ -251,16 +251,58 @@ class TinyGPT(nn.Module):
 
 
 # -------------------------
-# 10. Create and test model
+# 10. Train the model
 # -------------------------
 model = TinyGPT().to(device)
 
+optimizer = torch.optim.AdamW(
+    model.parameters(),
+    lr=learning_rate
+)
+
 print("Vocabulary size:", vocab_size)
-print("Model parameters:", sum(p.numel() for p in model.parameters()))
+print(
+    "Model parameters:",
+    sum(p.numel() for p in model.parameters())
+)
 
-xb, yb = get_batch("train")
-logits, loss = model(xb, yb)
+# Evaluate initial loss
+initial_losses = estimate_loss(model)
+print("Initial losses:", initial_losses)
 
-print("Input shape:", xb.shape)
-print("Logits shape:", logits.shape)
-print("Initial loss:", loss.item())
+# Training loop
+for step in range(max_iters):
+
+    # Evaluate periodically
+    if step % eval_interval == 0:
+        losses = estimate_loss(model)
+
+        print(
+            f"Step {step:4d}: "
+            f"train loss {losses['train']:.4f}, "
+            f"val loss {losses['val']:.4f}"
+        )
+
+    # Sample a training batch
+    xb, yb = get_batch("train")
+
+    # Forward pass
+    logits, loss = model(xb, yb)
+
+    # Reset old gradients
+    optimizer.zero_grad(set_to_none=True)
+
+    # Backpropagation
+    loss.backward()
+
+    # Update parameters
+    optimizer.step()
+
+# Final evaluation
+final_losses = estimate_loss(model)
+print("\nFinal losses:", final_losses)
+
+# Save the trained model
+torch.save(model.state_dict(), "tiny_gpt.pth")
+print("Model saved to tiny_gpt.pth")
+
